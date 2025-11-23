@@ -1,0 +1,468 @@
+import 'package:flutter/material.dart';
+import '../transactions/transaction_repository.dart';
+import '../database/models/transaction_model.dart';
+
+class TambahItemScreen extends StatefulWidget {
+  @override
+  _TambahItemScreenState createState() => _TambahItemScreenState();
+}
+
+class _TambahItemScreenState extends State<TambahItemScreen> {
+  final TextEditingController _namaController = TextEditingController();
+  final TextEditingController _hargaController = TextEditingController();
+  final TextEditingController _stockController = TextEditingController();
+  final TextEditingController _subItemStockController = TextEditingController();
+  final TransactionRepository _repository = TransactionRepository();
+  List<TransactionModel> _items = [];
+  bool _isUnlimitedStock = false;
+  bool _hasSubItem = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  @override
+  void dispose() {
+    _namaController.dispose();
+    _hargaController.dispose();
+    _stockController.dispose();
+    _subItemStockController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadItems() async {
+    final items = await _repository.getAllTransactions();
+    setState(() {
+      _items = items;
+    });
+  }
+
+  Future<void> _tambahItem() async {
+    final String nama = _namaController.text.trim();
+    final String hargaText = _hargaController.text.trim();
+    final String stockText = _stockController.text.trim();
+    
+    if (nama.isEmpty || hargaText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nama dan harga harus diisi')),
+      );
+      return;
+    }
+
+    final int? harga = int.tryParse(hargaText);
+    if (harga == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Harga harus berupa angka')),
+      );
+      return;
+    }
+
+    int? stock;
+    if (!_isUnlimitedStock) {
+      stock = int.tryParse(stockText);
+      if (stock == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stok harus berupa angka')),
+        );
+        return;
+      }
+    }
+
+    // Tambah item utama
+    final mainItem = TransactionModel(
+      nama: nama,
+      harga: harga,
+      stock: stock,
+      isUnlimitedStock: _isUnlimitedStock,
+      type: TransactionType.item,
+      createdAt: DateTime.now(),
+    );
+    
+    final mainItemId = await _repository.insertTransaction(mainItem);
+    
+    if (mainItemId > 0) {
+      if (_hasSubItem) {
+        // Tambah kupon
+        final kuponStock = _subItemStockController.text.trim().isEmpty
+            ? stock // Gunakan stok yang sama dengan item utama
+            : int.tryParse(_subItemStockController.text.trim());
+            
+        if (kuponStock != null) {
+          final couponItem = TransactionModel(
+            nama: 'Kupon - $nama',
+            harga: 0,
+            stock: kuponStock,
+            isUnlimitedStock: _isUnlimitedStock,
+            type: TransactionType.coupon,
+            parentId: mainItemId,
+            createdAt: DateTime.now(),
+          );
+          await _repository.insertTransaction(couponItem);
+        }
+      }
+      
+      _namaController.clear();
+      _hargaController.clear();
+      _stockController.clear();
+      _subItemStockController.clear();
+      setState(() {
+        _isUnlimitedStock = false;
+        _hasSubItem = false;
+      });
+      _loadItems();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Item berhasil ditambahkan')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menambahkan item')),
+      );
+    }
+  }
+
+  Future<void> _updateStock(TransactionModel mainItem) async {
+    TextEditingController stockUpdateController = TextEditingController();
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Update Stok ${mainItem.nama}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Stok saat ini: ${mainItem.isUnlimitedStock ? "Unlimited" : mainItem.stock}'),
+            SizedBox(height: 16),
+            if (!mainItem.isUnlimitedStock) TextField(
+              controller: stockUpdateController,
+              decoration: InputDecoration(
+                labelText: 'Jumlah perubahan stok',
+                hintText: '+5 untuk tambah, -3 untuk kurangi',
+              ),
+              keyboardType: TextInputType.numberWithOptions(signed: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && !mainItem.isUnlimitedStock) {
+      int? change = int.tryParse(stockUpdateController.text);
+      if (change != null) {
+        int newStock = (mainItem.stock ?? 0) + change;
+        if (newStock < 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Stok tidak boleh kurang dari 0')),
+          );
+          return;
+        }
+        
+        final success = await _repository.updateTransaction(
+          mainItem.copyWith(stock: newStock),
+        );
+        
+        if (success) {
+          _loadItems();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Stok berhasil diupdate')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal mengupdate stok')),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Tambah Item')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _namaController,
+              decoration: InputDecoration(
+                labelText: 'Nama Item',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            SizedBox(height: 16),
+            TextField(
+              controller: _hargaController,
+              decoration: InputDecoration(
+                labelText: 'Harga',
+                border: OutlineInputBorder(),
+                prefixText: 'Rp ',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Checkbox(
+                  value: _isUnlimitedStock,
+                  onChanged: (value) {
+                    setState(() {
+                      _isUnlimitedStock = value ?? false;
+                      if (_isUnlimitedStock) {
+                        _stockController.clear();
+                      }
+                    });
+                  },
+                ),
+                Text('Stok Unlimited'),
+              ],
+            ),
+            if (!_isUnlimitedStock) ...[
+              SizedBox(height: 16),
+              TextField(
+                controller: _stockController,
+                decoration: InputDecoration(
+                  labelText: 'Jumlah Stok',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+            SizedBox(height: 16),
+            Text('Sub-item/Kupon:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            CheckboxListTile(
+              title: Text('Tambahkan Kupon'),
+              subtitle: Text('Otomatis membuat kupon yang bisa dicentang saat digunakan'),
+              value: _hasSubItem,
+              onChanged: (value) {
+                setState(() {
+                  _hasSubItem = value ?? false;
+                  if (!_hasSubItem) {
+                    _subItemStockController.clear();
+                  }
+                });
+              },
+            ),
+            if (_hasSubItem) ...[
+              SizedBox(height: 8),
+              TextField(
+                controller: _subItemStockController,
+                decoration: InputDecoration(
+                  labelText: 'Jumlah Kupon',
+                  border: OutlineInputBorder(),
+                  helperText: 'Biarkan kosong jika sama dengan stok utama',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _tambahItem,
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.indigo,
+              ),
+              child: Text('Tambah Item', style: TextStyle(fontSize: 16)),
+            ),
+            SizedBox(height: 24),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _items.where((item) => item.type == TransactionType.item).length,
+                itemBuilder: (context, index) {
+                  final mainItems = _items.where((item) => item.type == TransactionType.item).toList();
+                  final mainItem = mainItems[index];
+                  final couponItem = _items.firstWhere(
+                    (item) => item.parentId == mainItem.id && item.type == TransactionType.coupon,
+                    orElse: () => TransactionModel(
+                      nama: '',
+                      harga: 0,
+                      type: TransactionType.coupon,
+                      createdAt: DateTime.now(),
+                    ),
+                  );
+                  
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Dismissible(
+                      key: Key(mainItem.id.toString()),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: EdgeInsets.only(right: 16),
+                        child: Icon(Icons.delete, color: Colors.white),
+                      ),
+                      direction: DismissDirection.endToStart,
+                      confirmDismiss: (direction) async {
+                        return await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('Hapus Item'),
+                            content: Text('Apakah Anda yakin ingin menghapus "${mainItem.nama}"?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: Text('Batal'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: Text('Hapus', style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      onDismissed: (direction) async {
+                        if (couponItem.id != null) {
+                          await _repository.deleteTransaction(couponItem.id!);
+                        }
+                        final success = await _repository.deleteTransaction(mainItem.id!);
+                        if (success) {
+                          setState(() {
+                            _items.remove(mainItem);
+                            if (couponItem.id != null) {
+                              _items.remove(couponItem);
+                            }
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Item berhasil dihapus')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Gagal menghapus item')),
+                          );
+                          _loadItems();
+                        }
+                      },
+                      child: ListTile(
+                        title: Text(mainItem.nama),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Harga: Rp${mainItem.harga}'),
+                            Text(
+                              'Stok: ${mainItem.isUnlimitedStock ? "Unlimited" : (mainItem.stock ?? 0)}',
+                              style: TextStyle(
+                                color: mainItem.isUnlimitedStock || (mainItem.stock ?? 0) > 0
+                                  ? Colors.green
+                                  : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (couponItem.id != null) ...[
+                              Text(
+                                'Status Kupon: ${couponItem.isUsed ? "Sudah Digunakan" : "Belum Digunakan"}',
+                                style: TextStyle(
+                                  color: couponItem.isUsed ? Colors.green : Colors.orange,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Kupon Tersisa: ${couponItem.stock ?? 0}',
+                                style: TextStyle(
+                                  color: (couponItem.stock ?? 0) > 0 ? Colors.blue : Colors.red,
+                                ),
+                              ),
+                            ],
+                            Text(
+                              'Waktu: ${mainItem.createdAt.day}/${mainItem.createdAt.month}/${mainItem.createdAt.year} '
+                              '${mainItem.createdAt.hour}:${mainItem.createdAt.minute.toString().padLeft(2, '0')}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                        trailing: Container(
+                          width: 96,
+                          child: Row(
+                            children: [
+                              if (!mainItem.isUnlimitedStock)
+                                IconButton(
+                                  icon: Icon(Icons.inventory, color: Colors.indigo),
+                                  onPressed: () => _updateStock(mainItem),
+                                ),
+                              if (couponItem.id != null)
+                                IconButton(
+                                  icon: Icon(
+                                    couponItem.isUsed ? Icons.check_circle : Icons.check_circle_outline,
+                                    color: couponItem.isUsed ? Colors.green : Colors.grey,
+                                  ),
+                                  onPressed: () async {
+                                    final success = await _repository.updateTransaction(
+                                      couponItem.copyWith(isUsed: !couponItem.isUsed),
+                                    );
+                                    if (success) {
+                                      _loadItems();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(
+                                          couponItem.isUsed 
+                                            ? 'Status kupon diubah menjadi belum digunakan'
+                                            : 'Status kupon diubah menjadi sudah digunakan'
+                                        )),
+                                      );
+                                    }
+                                  },
+                                ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: Text('Hapus Item'),
+                                      content: Text('Apakah Anda yakin ingin menghapus "${mainItem.nama}"?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(false),
+                                          child: Text('Batal'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(context).pop(true),
+                                          child: Text('Hapus', style: TextStyle(color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  
+                                  if (confirm == true) {
+                                    if (couponItem.id != null) {
+                                      await _repository.deleteTransaction(couponItem.id!);
+                                    }
+                                    final success = await _repository.deleteTransaction(mainItem.id!);
+                                    if (success) {
+                                      _loadItems();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Item berhasil dihapus')),
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Gagal menghapus item')),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
