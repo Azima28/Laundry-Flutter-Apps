@@ -48,7 +48,7 @@ The admin interface provides complete control over the laundry business operatio
 ### Add User Dialog
 
 <p align="center">
-  <img src="images/add_user.png" width="350">
+  <img src="manage_user.png" width="350">
 </p>
 
 Create new cashier accounts by providing username and password. Cashiers will use these credentials to access the order processing interface.
@@ -74,7 +74,7 @@ Add and configure laundry service items:
 ### Cashier Interface
 
 <p align="center">
-  <img src="images/cashier_home.png" width="350">
+  <img src="dashboard_user.png" width="350">
 </p>
 
 Clean welcome screen (Kasir Laundry) with quick access to main functions:
@@ -88,7 +88,7 @@ Clean welcome screen (Kasir Laundry) with quick access to main functions:
 ### Create New Order
 
 <p align="center">
-  <img src="images/order.png" width="350">
+  <img src="order_screen.png" width="350">
 </p>
 
 Process customer orders efficiently:
@@ -102,7 +102,7 @@ Process customer orders efficiently:
 ### Order History
 
 <p align="center">
-  <img src="images/history.png" width="350">
+  <img src="history screen.png" width="350">
 </p>
 
 View all orders with comprehensive details:
