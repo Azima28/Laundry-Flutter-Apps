@@ -291,10 +291,6 @@ This app stores local data using `sqflite` and `shared_preferences`. Review `lib
 
 ---
 
-## Publish to GitHub (example)
-
-Create a repository on GitHub and push the project:
-
 
 ## License
 
