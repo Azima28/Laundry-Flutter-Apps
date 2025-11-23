@@ -5,6 +5,9 @@ A lightweight demo Flutter app for a small laundry business: service listings, o
 Key features: Flutter UI, `sqflite` local storage, `shared_preferences` for small persistent values.
 
 ---
+## Setup Preview
+
+![Setup Screenshot](images/setup.png)
 
 ## Requirements
 
