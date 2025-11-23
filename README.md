@@ -106,7 +106,7 @@ Process customer orders efficiently:
 ### 8. Order History
 
 <p align="center">
-  <img src="images/history_screen.png" width="300">
+  <img src="images/history screen.png" width="300">
 </p>
 
 View comprehensive order history with search functionality:
