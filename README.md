@@ -7,7 +7,10 @@ Key features: Flutter UI, `sqflite` local storage, `shared_preferences` for smal
 ---
 ## Setup Preview
 
-![Setup Screenshot](images/setup.png)
+<p align="center">
+  <img src="images/setup.png" width="350">
+</p>
+
 
 ## Requirements
 
