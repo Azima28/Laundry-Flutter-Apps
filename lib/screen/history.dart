@@ -228,7 +228,7 @@ class _HistoryPageState extends State<HistoryPage> {
                             Navigator.of(context).pop();
                             _updatePaymentStatus(order);
                           },
-                          child: Text('Konfirmasi Pembayaran'),
+                          child: Text('Konfirm Bayar'),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.blue,
                           ),

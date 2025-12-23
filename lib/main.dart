@@ -10,16 +10,16 @@ import 'screen/history.dart';
 import 'screen/history_gosok.dart';
 import 'screen/login_screen.dart';
 import 'screen/admin_dashboard.dart';
+import 'screen/settings_screen.dart';
+import 'screen/printer_settings_screen.dart';
+import 'screen/payment_settings_screen.dart';
 import 'screen/check_role.dart';
 import 'database/database_helper.dart';
 import 'transactions/user_repository.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Delete and recreate database for schema update
-  await DatabaseHelper.instance.deleteDatabase();
-  
-  // Initialize database
+  // Initialize database (do not delete existing data)
   await DatabaseHelper.instance.database;
   
   // Check login status
@@ -99,6 +99,9 @@ class MyApp extends StatelessWidget {
         ),
         '/history': (context) => HistoryPage(),
         '/history_gosok': (context) => HistoryGosokPage(),
+        '/settings': (context) => SettingsScreen(),
+        '/printer_settings': (context) => PrinterSettingsScreen(),
+        '/payment_settings': (context) => PaymentSettingsScreen(),
       },
     );
   }

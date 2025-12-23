@@ -153,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text(
                           _isSettingUpAdmin ? 'Create Admin' : 'Login',
-                          style: TextStyle(fontSize: 18),
+                          style: TextStyle(fontSize: 18, color: Colors.white),
                         ),
                 ),
               ),

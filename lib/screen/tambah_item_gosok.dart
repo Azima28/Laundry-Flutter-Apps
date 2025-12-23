@@ -86,7 +86,7 @@ class _TambahItemGosokScreenState extends State<TambahItemGosokScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Tambah Item Gosok'),
-        backgroundColor: Colors.indigo,
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       ),
       body: Padding(
         padding: EdgeInsets.all(16.0),
@@ -132,7 +132,7 @@ class _TambahItemGosokScreenState extends State<TambahItemGosokScreen> {
                         backgroundColor: Colors.indigo,
                         padding: EdgeInsets.symmetric(vertical: 16.0),
                       ),
-                      child: Text('Tambah Item'),
+                      child: Text('Tambah Item', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),

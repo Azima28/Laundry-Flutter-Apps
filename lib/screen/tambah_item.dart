@@ -163,7 +163,7 @@ class _TambahItemScreenState extends State<TambahItemScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Tambah Item')),
+      appBar: AppBar(title: Text('Tambah Item', style: TextStyle(color: Colors.white)), backgroundColor: Colors.indigo),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -221,7 +221,7 @@ class _TambahItemScreenState extends State<TambahItemScreen> {
                 minimumSize: Size(double.infinity, 50),
                 backgroundColor: Colors.indigo,
               ),
-              child: Text('Tambah Item', style: TextStyle(fontSize: 16)),
+              child: Text('Tambah Item', style: TextStyle(fontSize: 16, color: Colors.white)),
             ),
             SizedBox(height: 16),
             Expanded(

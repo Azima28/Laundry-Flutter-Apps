@@ -4,6 +4,8 @@ import '../transactions/transaction_repository.dart';
 import '../transactions/order_repository.dart';
 import '../database/models/order_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'payment_screen.dart';
+import 'receipt_screen.dart';
 
 class PesanGosokPage extends StatefulWidget {
   @override
@@ -171,14 +173,69 @@ class _PesanGosokPageState extends State<PesanGosokPage> {
     );
 
     if (orderId != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pesanan berhasil dibuat')),
-      );
-      _customerNameController.clear();
-      setState(() {
-        _weights.clear();
-        _notes.clear();
-      });
+      // If 'Lunas' checked, open payment screen and require successful payment
+      if (_isPaid) {
+        final order = Order(
+          id: orderId,
+          customerName: _customerNameController.text,
+          orderDate: DateTime.now(),
+          totalAmount: totalAmount,
+          items: orderItems,
+          status: 'Pending',
+          userId: userId,
+          isPaid: false,
+        );
+
+        final paymentSuccess = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentScreen(order: order),
+          ),
+        );
+
+        if (paymentSuccess != true) {
+          // Payment cancelled or failed; remove the created order
+          await _orderRepository.deleteOrder(orderId);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Pembayaran dibatalkan')),
+            );
+          }
+          return;
+        }
+
+        // Get the updated order with payment info
+        final paidOrder = await _orderRepository.getOrder(orderId);
+        if (paidOrder == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal mendapatkan data pesanan')),
+          );
+          return;
+        }
+
+        // Navigate to receipt screen
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => ReceiptScreen(
+                order: paidOrder,
+                isPaid: true,
+                paymentMethod: paidOrder.paymentMethod,
+              ),
+            ),
+          );
+        }
+      } else {
+        // Not paid: simple create order flow
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pesanan berhasil dibuat')),
+        );
+        _customerNameController.clear();
+        setState(() {
+          _weights.clear();
+          _notes.clear();
+        });
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal membuat pesanan')),
@@ -275,49 +332,47 @@ class _PesanGosokPageState extends State<PesanGosokPage> {
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total:',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          Text(
-                            'Rp${_calculateTotal()}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.indigo,
-                            ),
-                          ),
-                        ],
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                        'Total:',
+                        style: TextStyle(fontSize: 18),
+                        ),
+                        Text(
+                        'Rp${_calculateTotal()}',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.indigo,
+                        ),
+                        ),
+                      ],
                       ),
                       SizedBox(height: 8),
                       ElevatedButton(
-                        onPressed: _weights.isNotEmpty ? _submitOrder : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
-                          minimumSize: Size(double.infinity, 50),
-                        ),
-                        child: Text(
-                          'Proses Pesanan',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      onPressed: _weights.isNotEmpty ? _submitOrder : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        minimumSize: Size(double.infinity, 50),
+                      ),
+                      child: Text(
+                        'Proses Pesanan',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
                       ),
                       SizedBox(height: 8),
                       Row(
-                        children: [
-                          Text('Status Pembayaran:'),
-                          SizedBox(width: 8),
-                          Switch(
-                            value: _isPaid,
-                            onChanged: (value) {
-                              setState(() {
-                                _isPaid = value;
-                              });
-                            },
-                          ),
-                          Text(_isPaid ? 'Lunas' : 'Belum Lunas'),
-                        ],
+                      children: [
+                        Checkbox(
+                        value: _isPaid,
+                        onChanged: (value) {
+                          setState(() {
+                          _isPaid = value ?? false;
+                          });
+                        },
+                        ),
+                        Text(_isPaid ? 'Lunas' : 'Belum Lunas'),
+                      ],
                       ),
                     ],
                   ),

@@ -67,22 +67,6 @@ This app stores local data using `sqflite` and `shared_preferences`. Review `lib
 
 ---
 
-## Publish to GitHub (example)
-
-Create a repository on GitHub and push the project:
-
-```powershell
-git init
-git add .
-git commit -m "Prepare project for public sharing: update README"
-git branch -M main
-git remote add origin https://github.com/<username>/<repo>.git
-git push -u origin main
-```
-
-Replace the remote URL with your repository URL.
-
----
 
 ## License
 

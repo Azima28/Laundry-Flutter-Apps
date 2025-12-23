@@ -495,12 +495,12 @@ class _HistoryGosokPageState extends State<HistoryGosokPage> {
                                           color: order.isPaid ? Colors.green : Colors.orange,
                                           size: 20,
                                         ),
-                                        Switch(
+                                        Checkbox(
                                           value: order.isPaid,
                                           onChanged: (value) => _updatePaymentStatus(order),
                                         ),
-                                      ],
-                                    ),
+                                        ],
+                                      ),
                                     // Completion status
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -510,7 +510,7 @@ class _HistoryGosokPageState extends State<HistoryGosokPage> {
                                           color: order.status == 'completed' ? Colors.green : Colors.orange,
                                           size: 20,
                                         ),
-                                        Switch(
+                                        Checkbox(
                                           value: order.status == 'completed',
                                           activeColor: Colors.green,
                                           onChanged: (value) => _updateOrderStatus(order),

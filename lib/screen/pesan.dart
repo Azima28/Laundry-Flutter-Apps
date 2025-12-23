@@ -5,7 +5,9 @@ import '../transactions/order_repository.dart';
 import '../database/models/order_model.dart';
 import '../models/payment_model.dart';
 import '../screen/payment_screen.dart';
+import '../screen/receipt_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../database/database_helper.dart';
 
 class PesanPage extends StatefulWidget {
   @override
@@ -15,15 +17,18 @@ class PesanPage extends StatefulWidget {
 class _PesanPageState extends State<PesanPage> {
   final TransactionRepository _repository = TransactionRepository();
   final OrderRepository _orderRepository = OrderRepository();
+  late DatabaseHelper _databaseHelper;
   List<TransactionModel> _items = [];
   Map<int, int> _quantities = {};
   Map<int, String> _notes = {};
   bool _isLoading = true;
+  bool _isPaid = false;
   final TextEditingController _customerNameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _databaseHelper = DatabaseHelper.instance;
     _loadItems();
   }
 
@@ -192,7 +197,73 @@ class _PesanPageState extends State<PesanPage> {
       return;
     }
 
-    // Show payment screen
+    // If belum lunas (not paid), skip payment screen and mark as unpaid
+    if (!_isPaid) {
+      // Mark order as unpaid (isPaid: false is default, but ensure it's set)
+      final unpaidOrder = Order(
+        id: order.id,
+        customerName: order.customerName,
+        orderDate: order.orderDate,
+        totalAmount: order.totalAmount,
+        items: order.items,
+        status: order.status,
+        userId: order.userId,
+        isPaid: false,
+        paymentMethod: 'none',
+      );
+      await _databaseHelper.updateOrder(unpaidOrder);
+
+      // Update stocks for all items
+      bool allStocksUpdated = true;
+      for (var entry in _quantities.entries.where((e) => e.value > 0)) {
+        final success = await _repository.decreaseStock(entry.key, entry.value);
+        if (!success) {
+          allStocksUpdated = false;
+          break;
+        }
+      }
+
+      if (!allStocksUpdated) {
+        await _orderRepository.deleteOrder(orderId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memperbarui stok. Pesanan dibatalkan.')),
+          );
+        }
+        return;
+      }
+
+      // Show success dialog for unpaid order
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Order Berhasil'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Total pembayaran: Rp$total'),
+                Text('Total item: ${items.length}'),
+                Text('Status: Belum Bayar'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Return to dashboard
+                },
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show payment screen (only if lunas checkbox is checked)
     final paymentSuccess = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -210,6 +281,15 @@ class _PesanPageState extends State<PesanPage> {
           SnackBar(content: Text('Pembayaran dibatalkan')),
         );
       }
+      return;
+    }
+
+    // Get the updated order (with payment info from PaymentScreen)
+    final paidOrder = await _orderRepository.getOrder(orderId);
+    if (paidOrder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mendapatkan data pesanan')),
+      );
       return;
     }
 
@@ -233,30 +313,15 @@ class _PesanPageState extends State<PesanPage> {
       return;
     }
 
-    // Show success dialog
+    // Navigate to receipt screen
     if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Order Berhasil'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total pembayaran: Rp$total'),
-              Text('Total item: ${items.length}'),
-              Text('Status: Sudah Bayar'),
-            ],
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ReceiptScreen(
+            order: paidOrder,
+            isPaid: true,
+            paymentMethod: paidOrder.paymentMethod,
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pop(); // Return to dashboard
-              },
-              child: Text('OK'),
-            ),
-          ],
         ),
       );
     }
@@ -404,12 +469,27 @@ class _PesanPageState extends State<PesanPage> {
                         ),
                         child: Text(
                           'Pesan Sekarang',
-                          style: TextStyle(fontSize: 18),
+                          style: TextStyle(fontSize: 18, color: Colors.white),
                         ),
+                      ),
+                      SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Checkbox(
+                            value: _isPaid,
+                            onChanged: (value) {
+                              setState(() {
+                                _isPaid = value ?? false;
+                              });
+                            },
+                          ),
+                          Text(_isPaid ? 'Lunas' : 'Belum Lunas'),
+                        ],
                       ),
                     ],
                   ),
-                ),
+                )
               ],
             ),
     );
