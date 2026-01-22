@@ -303,8 +303,8 @@ This project includes an MIT `LICENSE` file in the repository root. Update the o
 For questions or feedback, reach out:
 
 - Email: `azimarizki2@gmail.com`
-- Instagram: `@zimm.def`
-- WhatsApp: `+6289522584477`
+- Instagram: `@zimm.dev`
+
 
 If you want, I can run the `git` commands to commit and push this change for you (I will need the repository remote already configured). Tell me to proceed if you'd like that.
 
